@@ -16,15 +16,20 @@ public class Player : MonoBehaviour
     public float acceleration;
     public float decceleration;
     public float velPower;
-    public float run;
+    [SerializeField] private bool runRequest;
     [SerializeField] private float runMultiplier;
 
-
-    [Header("FacingComponents")]
-    [SerializeField] private float scale;
+    [Header("Jump")]
+    public float jumpForce;
+    public float fallMultiplier;
+    public float lowJumpMultiplier;
+    [SerializeField] private bool jumpRequest;
 
     [Header("GroundCheck")]
     [SerializeField] private LayerMask groundLayer;
+
+    [Header("Facing")]
+    private bool facingRight;
     // Start is called before the first frame update
     void Start()
     {
@@ -37,13 +42,24 @@ public class Player : MonoBehaviour
     void Update()
     {
         #region Inputs
-
         moveInput = Input.GetAxisRaw("Horizontal");
 
-        //Run Mechanichs
-        if(Input.GetKey(KeyCode.Space))
+        if(Input.GetKey(KeyCode.LeftShift))
         {
-            
+            runRequest = true;
+        }
+        else
+        {
+            runRequest = false;
+        }
+
+        if(Input.GetButtonDown("Jump") && isGrounded())
+        {
+            jumpRequest = true;
+        }
+        else if(Input.GetButton("Jump"))
+        {
+            animator.SetBool("Jump",true);
         }
         #endregion
     }
@@ -51,51 +67,84 @@ public class Player : MonoBehaviour
     void FixedUpdate()
     {
         #region Movement
-
-        float targetSpeed = moveInput * moveSpeed;
-        float speedDif = targetSpeed - rb.velocity.x;
-        float accelRate = (MathF.Abs(targetSpeed) > 0.01f) ? acceleration : decceleration;
-        float movement = Mathf.Pow(Mathf.Abs(speedDif) * accelRate, velPower) * Mathf.Sign(speedDif);
-        rb.AddForce(movement * Vector2.right);
+        if(runRequest == true && isGrounded())
+        {
+            runMultiplier = 2;
+        }
+        else
+        {
+            runMultiplier = 1;
+        }
+        horizontalMove();
         #endregion
 
-        #region Facing < >
+        #region Jump
+        if(rb.velocity.y < 0) {
+            rb.gravityScale = fallMultiplier;
+        } else if(rb.velocity.y > 0 && !Input.GetButton("Jump")) {
+            rb.gravityScale = lowJumpMultiplier;
+        } else {
+            rb.gravityScale = 1f;
+        }
 
-        switch (Mathf.Sign(moveInput))
+        if(jumpRequest)
         {
-            case >= 1:
-                transform.localScale = new Vector2(scale, transform.localScale.y);
-                break;
-            case <= -1:
-                transform.localScale = new Vector2(-scale, transform.localScale.y);
-                break;
-            default:
-                break;
+            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            jumpRequest = false;
         }
         #endregion
 
-        #region Move Animation
+        #region Facing < >
+        if(moveInput < 0 && !facingRight)
+        {
+            flip();
+        }
+        else if(moveInput > 0 && facingRight)
+        {
+            flip();
+        }
+        #endregion
+
+        #region Animations
         if(rb.velocity.x != 0)
         {
-            animator.SetBool("Moving" , true);
             animator.speed = Mathf.Abs(rb.velocity.x);
+            animator.SetBool("Moving" , true);
         }
         else
         {
             animator.SetBool("Moving" , false);
         }
 
+        if(isGrounded())
+        {
+            animator.SetBool("Jump", false);
+        }
         #endregion
     }
 
-/*    #region GroundCheck
+    #region GroundCheck
 
     private bool isGrounded()
     {
-        float extraHeightText = .03f;
-        RaycasHit2D raycastHit = Physics2D.BoxCast(bc.bounds.center, bc.bounds.size, 0f, Vector2.down, bc.bounds.extents.y + extraHeightText, groundLayer);
+        float extraHeightText = 10E-3f;
+        RaycastHit2D raycastHit = Physics2D.BoxCast(bc.bounds.center, bc.bounds.size, 0f, Vector2.down, extraHeightText, groundLayer);
         return raycastHit.collider != null;
     }
     #endregion
-*/
+
+    private void horizontalMove()
+    {
+        float targetSpeed = moveInput * (moveSpeed * runMultiplier);
+        float speedDif = targetSpeed - rb.velocity.x;
+        float accelRate = (MathF.Abs(targetSpeed) > 0.01f) ? acceleration : decceleration;
+        float movement = Mathf.Pow(Mathf.Abs(speedDif) * accelRate, velPower) * Mathf.Sign(speedDif);
+        rb.AddForce(movement * Vector2.right);
+    }
+
+    private void flip() 
+    {
+        facingRight = !facingRight;
+        transform.Rotate(0f, 180f, 0f);
+    }
 }
