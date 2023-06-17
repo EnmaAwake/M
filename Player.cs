@@ -17,7 +17,7 @@ public class Player : MonoBehaviour
     public float decceleration;
     public float velPower;
     [SerializeField] private bool runRequest;
-    [SerializeField] private float runMultiplier;
+    public float runMultiplier;
 
     [Header("Jump")]
     public float jumpForce;
@@ -25,8 +25,11 @@ public class Player : MonoBehaviour
     public float lowJumpMultiplier;
     [SerializeField] private bool jumpRequest;
 
-    [Header("GroundCheck")]
+    [Header("LayerChecks")]
     [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask wallLayer;
+    [SerializeField] private Transform wallCheck;
+
 
     [Header("Facing")]
     private bool facingRight;
@@ -57,7 +60,11 @@ public class Player : MonoBehaviour
         {
             jumpRequest = true;
         }
-        else if(Input.GetButton("Jump"))
+        else if(Input.GetButtonDown("Jump") && onTheWall())
+        {
+            rb.velocity = new Vector2(rb.velocity.x , jumpForce);
+        }
+        else if(Input.GetButton("Jump") && !isGrounded())
         {
             animator.SetBool("Jump",true);
         }
@@ -79,11 +86,16 @@ public class Player : MonoBehaviour
         #endregion
 
         #region Jump
-        if(rb.velocity.y < 0) {
+        if(rb.velocity.y < 0) 
+        {
             rb.gravityScale = fallMultiplier;
-        } else if(rb.velocity.y > 0 && !Input.GetButton("Jump")) {
+        } 
+        else if(rb.velocity.y > 0 && !Input.GetButton("Jump")) 
+        {
             rb.gravityScale = lowJumpMultiplier;
-        } else {
+        } 
+        else 
+        {
             rb.gravityScale = 1f;
         }
 
@@ -146,5 +158,10 @@ public class Player : MonoBehaviour
     {
         facingRight = !facingRight;
         transform.Rotate(0f, 180f, 0f);
+    }
+
+    private bool onTheWall()
+    {
+        return Physics2D.OverlapCircle(wallCheck.position, 0.1f, wallLayer);
     }
 }
