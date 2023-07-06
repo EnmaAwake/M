@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -10,6 +8,9 @@ public class Player : MonoBehaviour
     BoxCollider2D bc;
     Animator animator;
 
+    [Header("Instances")]
+    public static Player pInstance;
+
     [Header("Move")]
     private float moveInput;
     public float moveSpeed;
@@ -17,7 +18,6 @@ public class Player : MonoBehaviour
     public float decceleration;
     public float velPower;
     [SerializeField] private bool runRequest;
-    public float runMultiplier;
 
     [Header("Jump")]
     public float jumpForce;
@@ -27,18 +27,29 @@ public class Player : MonoBehaviour
 
     [Header("LayerChecks")]
     [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private LayerMask wallLayer;
     [SerializeField] private Transform wallCheck;
 
 
     [Header("Facing")]
     private bool facingRight;
     // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         bc = GetComponent<BoxCollider2D>();
         animator = GetComponent<Animator>();
+
+        if(pInstance == null)
+        {
+            pInstance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            {
+                Destroy(gameObject);
+            }
+        }
     }
 
     // Update is called once per frame
@@ -46,16 +57,7 @@ public class Player : MonoBehaviour
     {
         #region Inputs
         moveInput = Input.GetAxisRaw("Horizontal");
-
-        if(Input.GetKey(KeyCode.LeftShift))
-        {
-            runRequest = true;
-        }
-        else
-        {
-            runRequest = false;
-        }
-
+        
         if(Input.GetButtonDown("Jump") && isGrounded())
         {
             jumpRequest = true;
@@ -69,22 +71,18 @@ public class Player : MonoBehaviour
             animator.SetBool("Jump",true);
         }
         #endregion
+
+
     }
 
     void FixedUpdate()
     {
         #region Movement
-        if(runRequest == true && isGrounded())
-        {
-            runMultiplier = 2;
-        }
-        else
-        {
-            runMultiplier = 1;
-        }
-        horizontalMove();
-        #endregion
 
+        horizontalMove();
+
+        #endregion
+        
         #region Jump
         if(rb.velocity.y < 0) 
         {
@@ -118,9 +116,9 @@ public class Player : MonoBehaviour
         #endregion
 
         #region Animations
+        animator.speed = 0.25f + Mathf.Abs(rb.velocity.x);        
         if(rb.velocity.x != 0)
         {
-            animator.speed = Mathf.Abs(rb.velocity.x);
             animator.SetBool("Moving" , true);
         }
         else
@@ -147,7 +145,7 @@ public class Player : MonoBehaviour
 
     private void horizontalMove()
     {
-        float targetSpeed = moveInput * (moveSpeed * runMultiplier);
+        float targetSpeed = moveInput * moveSpeed;
         float speedDif = targetSpeed - rb.velocity.x;
         float accelRate = (MathF.Abs(targetSpeed) > 0.01f) ? acceleration : decceleration;
         float movement = Mathf.Pow(Mathf.Abs(speedDif) * accelRate, velPower) * Mathf.Sign(speedDif);
@@ -162,6 +160,6 @@ public class Player : MonoBehaviour
 
     private bool onTheWall()
     {
-        return Physics2D.OverlapCircle(wallCheck.position, 0.1f, wallLayer);
+        return Physics2D.OverlapCircle(wallCheck.position, 0.1f, groundLayer);
     }
 }
